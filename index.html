@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Elephant Mapping — Density &amp; Speed Tracks</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Libre+Baskerville:ital@1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root {
+  --bg:#0e0f13; --surface:#16181f; --surface2:#1e2029;
+  --border:#2a2d3a; --text:#d8dce8; --muted:#5a5f78;
+  --accent:#7ee8a2; --accent2:#5bbfdb; --sid:290px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;}
+body{
+  background:var(--bg);color:var(--text);
+  font-family:'Space Mono',monospace;
+  display:flex;flex-direction:column;height:100vh;overflow:hidden;
+}
+
+/* HEADER */
+header{
+  flex-shrink:0;padding:9px 16px;
+  background:var(--surface);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:14px;
+}
+.brand{display:flex;flex-direction:column;justify-content:center;}
+.brand-sub{font-size:13px;color:var(--text);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:2px;}
+.brand-title{font-size:22px;font-weight:700;color:var(--accent);letter-spacing:-0.5px;line-height:1;}
+.brand-title em{font-style:normal;font-size:12px;color:#d8dce8;font-weight:400;letter-spacing:0.02em;margin-left:10px;vertical-align:middle;}
+.bm-btns{display:flex;border:1px solid var(--border);border-radius:4px;overflow:hidden;}
+.bm-btn{background:var(--surface2);border:none;color:var(--text);font-family:'Space Mono',monospace;font-size:10px;padding:5px 12px;cursor:pointer;letter-spacing:.05em;transition:all .15s;}
+.bm-btn.on{background:var(--accent2);color:#0e0f13;font-weight:700;}
+.bm-btn:hover:not(.on){color:#fff;background:var(--border);}
+.bm-label{font-size:10px;color:var(--text);font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px;}
+.bm-select{
+  background:var(--surface2);border:1px solid var(--accent2);color:var(--text);
+  font-family:'Space Mono',monospace;font-size:11px;font-weight:700;
+  padding:5px 8px;border-radius:4px;cursor:pointer;
+  letter-spacing:.03em;min-width:160px;
+}
+.bm-select:focus{outline:1px solid var(--accent);}
+
+/* BODY */
+.body{display:flex;flex:1;overflow:hidden;min-height:0;}
+
+/* SIDEBAR */
+aside{
+  width:var(--sid);flex-shrink:0;overflow-y:auto;overflow-x:hidden;
+  background:var(--surface);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+}
+.sec{padding:10px 10px 10px 12px;border-bottom:1px solid var(--border);}
+.sec-lbl{font-size:9px;letter-spacing:.12em;color:var(--accent2);text-transform:uppercase;margin-bottom:8px;font-weight:700;}
+
+/* upload */
+.drop{
+  border:1.5px dashed var(--border);border-radius:5px;
+  padding:16px 10px;text-align:center;cursor:pointer;
+  background:var(--surface2);transition:border-color .15s;
+}
+.drop:hover,.drop.over{border-color:var(--accent);}
+.drop .di{font-size:22px;margin-bottom:4px;}
+.drop .dl{font-size:10px;color:var(--muted);line-height:1.5;}
+.drop .dl b{color:var(--accent);}
+#fi{display:none;}
+
+/* selects */
+.crow{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+.crow label{font-size:10px;color:var(--text);width:76px;flex-shrink:0;}
+select{
+  background:var(--surface2);border:1px solid var(--border);
+  color:var(--text);font-family:'Space Mono',monospace;font-size:10px;
+  padding:3px 5px;border-radius:3px;width:160px;cursor:pointer;
+}
+
+/* chips */
+.chips{display:flex;flex-wrap:wrap;gap:4px;max-height:120px;overflow-y:auto;}
+.chip{
+  padding:3px 8px;border-radius:3px;font-size:9px;
+  border:1px solid var(--border);cursor:pointer;
+  transition:all .12s;background:var(--surface2);color:var(--muted);
+}
+.chip.on{color:#0e0f13;font-weight:700;border-color:transparent;}
+.chip-ctrl{display:flex;gap:8px;margin-bottom:6px;}
+.chip-ctrl button{
+  font-size:9px;color:var(--accent2);background:none;border:none;
+  cursor:pointer;font-family:'Space Mono',monospace;padding:0;
+}
+.chip-ctrl button:hover{color:var(--text);}
+.render-btn{
+  width:100%;background:var(--accent);color:#0e0f13;
+  border:none;font-family:'Space Mono',monospace;font-size:13px;font-weight:700;
+  padding:11px;border-radius:4px;cursor:pointer;letter-spacing:.05em;
+  transition:background .15s, transform .1s;
+}
+.render-btn:hover{background:#9ef5b8;transform:translateY(-1px);}
+.render-btn:active{transform:translateY(0);}
+
+/* sliders */
+.srow{display:flex;flex-direction:column;gap:3px;margin-bottom:10px;}
+.srow-header{display:flex;justify-content:space-between;align-items:baseline;}
+.srow-header label{font-size:10px;color:var(--text);font-weight:700;}
+.sv{font-size:11px;color:var(--accent);font-weight:700;}
+.srow input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;}
+.srow-ticks{display:flex;justify-content:space-between;font-size:9px;color:var(--muted);margin-top:1px;}
+
+/* legend */
+.leg-bar{height:9px;border-radius:3px;margin-bottom:3px;}
+.leg-lbl{display:flex;justify-content:space-between;font-size:9px;color:var(--text);}
+.leg-unit{font-size:9px;color:var(--text);margin-top:2px;}
+.stat-row{font-size:10px;color:var(--text);line-height:1.7;}
+.stat-row b{color:var(--text);}
+
+/* MAP AREA - two panels */
+.maps{display:flex;flex:1;min-width:0;overflow:hidden;gap:6px;padding:6px;background:var(--bg);}
+.map-panel{flex:1;display:flex;flex-direction:column;min-width:0;position:relative;border:2px solid var(--border);border-radius:6px;overflow:hidden;}
+
+.map-title{
+  flex-shrink:0;padding:8px 14px;
+  background:var(--surface);border-bottom:1px solid var(--border);
+  font-size:13px;color:var(--text);letter-spacing:.08em;font-weight:700;
+  display:flex;align-items:center;gap:8px;
+}
+.map-title .dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.map-inner{flex:1;position:relative;}
+.badge{
+  position:absolute;bottom:8px;right:8px;z-index:500;
+  background:rgba(14,15,19,.85);border:1px solid var(--border);
+  padding:3px 9px;font-size:10px;color:var(--muted);border-radius:3px;
+  pointer-events:none;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="brand-sub">Continental Tracking Initiative's</div>
+    <div class="brand-title">Elephant Mapping <em>Density &amp; Speed Tracks</em></div>
+  </div>
+  <div style="flex:1"></div>
+  <div style="display:flex;align-items:flex-end;gap:12px;">
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+      <div class="bm-label">Basemap</div>
+      <select class="bm-select" id="bm-select" onchange="applyBasemap(this.value)">
+        <option value="satellite">🛰 Satellite + Labels</option>
+        <option value="light">🗺 Light</option>
+        <option value="topo">🏔 Topo</option>
+        <option value="dark">🌙 Dark</option>
+      </select>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+      <div class="bm-label">Grid</div>
+      <div class="bm-btns">
+        <button class="bm-btn" id="grat-btn" onclick="toggleGraticule()">＋ Lat/Lon Grid</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="body">
+
+  <!-- SIDEBAR -->
+  <aside>
+
+    <div class="sec">
+      <div class="sec-lbl">Data</div>
+      <div class="drop" id="dz" onclick="document.getElementById('fi').click()">
+        <div class="di">🗺️</div>
+        <div class="dl"><b>Upload CSV</b><br>lat · lon · ID · timestamp</div>
+      </div>
+      <input type="file" id="fi" accept=".csv">
+    </div>
+
+    <div class="sec" id="s-cols" style="display:none">
+      <div class="sec-lbl">Columns</div>
+      <div class="crow"><label>Lon / Easting</label><select id="clon"></select></div>
+      <div class="crow"><label>Lat / Northing</label><select id="clat"></select></div>
+      <div class="crow"><label>Individual ID</label><select id="cid"></select></div>
+      <div class="crow"><label>Timestamp</label><select id="cts"></select></div>
+    </div>
+
+    <div class="sec" id="s-utm" style="display:none">
+      <div class="sec-lbl">Coordinate System</div>
+      <div id="crs-latlon" style="display:none;font-size:11px;color:#7ee8a2;font-weight:700;line-height:1.6;">✓ Lat/lon detected</div>
+      <div id="crs-utm" style="display:none">
+        <div style="font-size:11px;color:#f0a868;font-weight:700;margin-bottom:8px;line-height:1.5;">⚠ UTM coordinates detected — select your zone:</div>
+        <div class="crow" style="margin-bottom:6px;"><label>UTM Zone</label>
+          <select id="utm-zone" onchange="setUTMZone(this.value)">
+            <option value="">— select —</option>
+            <option value="28">28 (12°W–6°W)</option>
+            <option value="29">29 (6°W–0°)</option>
+            <option value="30">30 (0°–6°E)</option>
+            <option value="31">31 (6°E–12°E)</option>
+            <option value="32">32 (12°E–18°E)</option>
+            <option value="33">33 (18°E–24°E)</option>
+            <option value="34">34 (24°E–30°E)</option>
+            <option value="35">35 (30°E–36°E)</option>
+            <option value="36">36 (36°E–42°E)</option>
+            <option value="37">37 (42°E–48°E)</option>
+            <option value="38">38 (48°E–54°E)</option>
+          </select>
+        </div>
+        <div class="crow"><label>Hemisphere</label>
+          <select id="utm-hemi" onchange="window._utmHemi=this.value">
+            <option value="N">North of equator</option>
+            <option value="S">South of equator</option>
+          </select>
+        </div>
+        <div id="utm-zone-hint" style="font-size:10px;color:var(--text);margin-top:6px;line-height:1.6;"></div>
+      </div>
+    </div>
+
+    <div class="sec" id="s-inds" style="display:none">
+      <div class="sec-lbl">Individuals</div>
+      <div class="chip-ctrl">
+        <button onclick="selAll()">all</button>
+        <button onclick="selNone()">none</button>
+      </div>
+      <div class="chips" id="chips"></div>
+    </div>
+
+    <div class="sec" id="s-render" style="display:none">
+      <button class="render-btn" id="render-btn" onclick="doRender()">&#9654; Render Maps</button>
+      <div id="render-hint" style="font-size:9px;color:var(--muted);margin-top:6px;line-height:1.5;">Set all columns &amp; coordinate system above, then render.</div>
+    </div>
+
+    <div class="sec" id="s-hopts" style="display:none">
+      <div class="sec-lbl">Heatmap</div>
+      <div class="srow">
+        <div class="srow-header"><label>Radius (px)</label><span class="sv" id="hrv">25</span></div>
+        <input type="range" id="hr" min="5" max="80" value="25" oninput="sv('hrv',this.value);schedRender()">
+        <div class="srow-ticks"><span>5</span><span>80</span></div>
+      </div>
+      <div class="srow">
+        <div class="srow-header"><label>Spread</label><span class="sv" id="hspv">2</span></div>
+        <input type="range" id="hspread" min="1" max="5" value="2" step="0.1" oninput="sv('hspv',this.value);schedRender()">
+        <div class="srow-ticks"><span>1</span><span>5</span></div>
+      </div>
+    </div>
+
+    <div class="sec" id="s-topts" style="display:none">
+      <div class="sec-lbl">Speed Tracks</div>
+      <div class="srow">
+        <div class="srow-header"><label>Line weight</label><span class="sv" id="twv">2</span></div>
+        <input type="range" id="tw" min="1" max="8" value="2" oninput="sv('twv',this.value);schedRender()">
+        <div class="srow-ticks"><span>1</span><span>8</span></div>
+      </div>
+      <div class="srow">
+        <div class="srow-header"><label>Filter threshold (km/h)</label><span class="sv" id="sftv">11</span></div>
+        <input type="range" id="sft" min="1" max="40" value="11" oninput="sv('sftv',this.value);updateColourMax();schedRender()">
+        <div class="srow-ticks"><span>1</span><span>40</span></div>
+        <div style="font-size:9px;color:var(--muted);margin-top:2px;">Segments above this are dropped as GPS error</div>
+      </div>
+      <div class="srow">
+        <div class="srow-header"><label>Colour max (km/h)</label><span class="sv" id="smxv">8</span></div>
+        <input type="range" id="smx" min="1" max="20" value="8" oninput="sv('smxv',this.value);sv('leg-max',this.value);schedRender()">
+        <div class="srow-ticks"><span>1</span><span>20</span></div>
+        <div style="font-size:9px;color:var(--muted);margin-top:2px;">Top of colour ramp — stretch to typical max speed</div>
+      </div>
+      <div id="filter-info" style="display:none;font-size:10px;padding:5px 7px;background:var(--surface2);border-radius:4px;border:1px solid var(--border);color:var(--muted);margin-top:2px;line-height:1.6;"></div>
+      <div class="srow">
+        <div class="srow-header"><label>Opacity %</label><span class="sv" id="topv">80</span></div>
+        <input type="range" id="top" min="10" max="100" value="80" oninput="sv('topv',this.value);schedRender()">
+        <div class="srow-ticks"><span>10</span><span>100</span></div>
+      </div>
+    </div>
+
+    <div class="sec" id="s-hleg" style="display:none">
+      <div class="sec-lbl">Density legend</div>
+      <div class="leg-bar" style="background:linear-gradient(to right,rgba(189,201,225,0.6),#74a9cf,#2b8cbe,#fecc5c,#fd8d3c,#e31a1c,#800026)"></div>
+      <div class="leg-lbl"><span>Low</span><span>High</span></div>
+    </div>
+
+    <div class="sec" id="s-tleg" style="display:none">
+      <div class="sec-lbl">Speed legend</div>
+      <div class="leg-bar" style="background:linear-gradient(to right,#313695,#4575b4,#74add1,#e0f3f8,#ffffbf,#fdae61,#f46d43,#d73027,#a50026)"></div>
+      <div class="leg-lbl"><span>0</span><span id="leg-max">8</span></div>
+      <div class="leg-unit">km/h</div>
+    </div>
+
+    <div class="sec" id="s-stats" style="display:none">
+      <div class="sec-lbl">Stats</div>
+      <div class="stat-row" id="stattxt"></div>
+    </div>
+
+  </aside>
+
+  <!-- TWO MAPS -->
+  <div class="maps">
+    <div class="map-panel">
+      <div class="map-title">
+        <span class="dot" style="background:#6baed6"></span>
+        POINT DENSITY HEATMAP
+      </div>
+      <div id="map-heat" class="map-inner"></div>
+      <div class="badge" id="badge-heat">Load a CSV</div>
+      <div id="map-hleg" style="display:none;position:absolute;bottom:24px;left:10px;z-index:800;
+           background:rgba(14,15,19,0.82);border:1px solid var(--border);border-radius:5px;
+           padding:7px 10px;min-width:140px;">
+        <div style="font-size:9px;letter-spacing:.1em;color:var(--accent2);text-transform:uppercase;font-weight:700;margin-bottom:5px;">Density</div>
+        <div style="height:9px;border-radius:3px;background:linear-gradient(to right,rgba(189,201,225,0.6),#74a9cf,#2b8cbe,#fecc5c,#fd8d3c,#e31a1c,#800026);margin-bottom:3px;"></div>
+        <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text);"><span>Low</span><span>High</span></div>
+      </div>
+    </div>
+    <div class="map-panel">
+      <div class="map-title">
+        <span class="dot" style="background:#fdae61"></span>
+        SPEED-COLORED TRACKS
+      </div>
+      <div id="map-track" class="map-inner"></div>
+      <div class="badge" id="badge-track">Load a CSV</div>
+      <div id="map-tleg" style="display:none;position:absolute;bottom:24px;left:10px;z-index:800;
+           background:rgba(14,15,19,0.82);border:1px solid var(--border);border-radius:5px;
+           padding:7px 10px;min-width:140px;">
+        <div style="font-size:9px;letter-spacing:.1em;color:var(--accent2);text-transform:uppercase;font-weight:700;margin-bottom:5px;">Speed</div>
+        <div style="height:9px;border-radius:3px;background:linear-gradient(to right,#313695,#4575b4,#74add1,#e0f3f8,#ffffbf,#fdae61,#f46d43,#d73027,#a50026);margin-bottom:3px;"></div>
+        <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text);"><span>0</span><span id="map-leg-max">8</span></div>
+        <div style="font-size:9px;color:var(--text);margin-top:2px;">km/h</div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- .body -->
+
+<script>
+// ── helpers ──────────────────────────────────────────────────────────────
+const el = id => document.getElementById(id);
+const sv = (id, v) => { el(id).textContent = v; };
+
+// ── MAPS ─────────────────────────────────────────────────────────────────
+const mapH = L.map('map-heat', {zoomControl:true}).setView([0,20],4);
+const mapT = L.map('map-track',{zoomControl:false}).setView([0,20],4);
+
+// Basemap definitions
+const BASEMAPS = {
+  satellite: [
+    { url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      attr:'Tiles &copy; Esri' },
+    { url:'https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+      attr:'' }
+  ],
+  light: [
+    { url:'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+      attr:'&copy; OpenStreetMap &copy; CARTO' }
+  ],
+  topo: [
+    { url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
+      attr:'Tiles &copy; Esri &mdash; Esri, HERE, Garmin, FAO, NOAA, USGS' }
+  ],
+  dark: [
+    { url:'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+      attr:'&copy; OpenStreetMap &copy; CARTO' }
+  ]
+};
+let activeBasemap='satellite';
+let bmLayers={heat:[],track:[]};
+function applyBasemap(name){
+  activeBasemap=name;
+  bmLayers.heat.forEach(l=>mapH.removeLayer(l));
+  bmLayers.track.forEach(l=>mapT.removeLayer(l));
+  bmLayers={heat:[],track:[]};
+  BASEMAPS[name].forEach(def=>{
+    const lH=L.tileLayer(def.url,{attribution:def.attr,maxZoom:19});
+    const lT=L.tileLayer(def.url,{attribution:def.attr,maxZoom:19});
+    lH.addTo(mapH); lT.addTo(mapT);
+    bmLayers.heat.push(lH); bmLayers.track.push(lT);
+  });
+  // sync dropdown
+  const sel = document.getElementById('bm-select');
+  if (sel) sel.value = name;
+}
+applyBasemap('satellite');
+
+// ── GRATICULE (lat/lon grid + axis labels) ────────────────────────────────
+let graticuleVisible = false;
+let gratLayers = { heat: null, track: null };
+
+// Graticule drawn on a canvas appended directly to the map container div
+// (NOT overlayPane which gets CSS-transformed by Leaflet during pan)
+function makeGraticuleCanvas(map) {
+  // Append canvas directly to the leaflet container div.
+  // Leaflet sets position:relative on its container, so absolute children anchor correctly.
+  const container = map.getContainer();
+  const cv = document.createElement('canvas');
+  cv.style.position = 'absolute';
+  cv.style.top = '0';
+  cv.style.left = '0';
+  cv.style.pointerEvents = 'none';
+  cv.style.zIndex = '700';
+  container.appendChild(cv);
+
+  function draw() {
+    const w = container.clientWidth;
+    const h = container.clientHeight;
+    if (!w || !h) return;
+    cv.width  = w;
+    cv.height = h;
+    const ctx = cv.getContext('2d');
+    ctx.clearRect(0, 0, w, h);
+
+    const bounds = map.getBounds();
+    const zoom   = map.getZoom();
+
+    let interval = 10;
+    if (zoom >= 5)  interval = 5;
+    if (zoom >= 7)  interval = 2;
+    if (zoom >= 9)  interval = 1;
+    if (zoom >= 11) interval = 0.5;
+    if (zoom >= 13) interval = 0.25;
+
+    const isLight = activeBasemap === 'light' || activeBasemap === 'topo';
+    const lineColor  = isLight ? 'rgba(0,0,0,0.3)'        : 'rgba(255,255,255,0.4)';
+    const labelColor = isLight ? '#000'                    : '#fff';
+    const bgColor    = isLight ? 'rgba(255,255,255,0.82)'  : 'rgba(0,0,0,0.65)';
+
+    ctx.font      = 'bold 11px monospace';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([5, 5]);
+
+    function fmt(v, isLat) {
+      const dec = interval < 1 ? 2 : (interval < 5 ? 1 : 0);
+      const dir = isLat ? (v >= 0 ? 'N' : 'S') : (v >= 0 ? 'E' : 'W');
+      return Math.abs(v).toFixed(dec) + '°' + dir;
+    }
+
+    const minLon = Math.floor(bounds.getWest()  / interval) * interval;
+    const maxLon = Math.ceil( bounds.getEast()  / interval) * interval;
+    const minLat = Math.floor(bounds.getSouth() / interval) * interval;
+    const maxLat = Math.ceil( bounds.getNorth() / interval) * interval;
+
+    // Meridians (vertical)
+    for (let lon = minLon; lon <= maxLon + 0.0001; lon = +(lon + interval).toFixed(8)) {
+      const cp = map.latLngToContainerPoint(L.latLng(0, lon));
+      const x  = Math.round(cp.x);
+      ctx.strokeStyle = lineColor;
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+      if (x > 30 && x < w - 30) {
+        const lbl = fmt(lon, false);
+        const tw  = ctx.measureText(lbl).width;
+        ctx.fillStyle = bgColor;
+        ctx.fillRect(x - tw/2 - 3, h - 18, tw + 6, 15);
+        ctx.fillStyle = labelColor;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(lbl, x, h - 11);
+      }
+    }
+
+    // Parallels (horizontal)
+    for (let lat = minLat; lat <= maxLat + 0.0001; lat = +(lat + interval).toFixed(8)) {
+      const cp = map.latLngToContainerPoint(L.latLng(lat, 0));
+      const y  = Math.round(cp.y);
+      ctx.strokeStyle = lineColor;
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+      if (y > 15 && y < h - 15) {
+        const lbl = fmt(lat, true);
+        const tw  = ctx.measureText(lbl).width;
+        ctx.fillStyle = bgColor;
+        ctx.fillRect(3, y - 8, tw + 6, 15);
+        ctx.fillStyle = labelColor;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(lbl, 6, y);
+      }
+    }
+  }
+
+  map.on('move moveend zoomend resize', draw);
+  draw();
+  return {
+    canvas: cv,
+    remove() { map.off('move moveend zoomend resize', draw); cv.remove(); }
+  };
+}
+
+function toggleGraticule() {
+  graticuleVisible = !graticuleVisible;
+  const btn = document.getElementById('grat-btn');
+  btn.classList.toggle('on', graticuleVisible);
+  if (graticuleVisible) {
+    gratLayers.heat  = makeGraticuleCanvas(mapH);
+    gratLayers.track = makeGraticuleCanvas(mapT);
+  } else {
+    if (gratLayers.heat)  { gratLayers.heat.remove();  gratLayers.heat  = null; }
+    if (gratLayers.track) { gratLayers.track.remove(); gratLayers.track = null; }
+  }
+}
+
+
+// sync maps
+let syncing = false;
+function syncMaps(source, target) {
+  source.on('moveend', function() {
+    if (syncing) return;
+    syncing = true;
+    target.setView(source.getCenter(), source.getZoom(), {animate:false});
+    syncing = false;
+  });
+}
+syncMaps(mapH, mapT);
+syncMaps(mapT, mapH);
+
+// ── STATE ─────────────────────────────────────────────────────────────────
+let rows=[], headers=[], inds=[], selInds=new Set();
+let heatLayer=null, trackLayers=[];
+let renderTimer=null;
+
+const PAL=['#7ee8a2','#5bbfdb','#f0a868','#e88fa0','#b8a4e8',
+           '#e8d87e','#7ebbe8','#e87e9c','#8ee8d8','#d4e87e'];
+
+// ── FILE ──────────────────────────────────────────────────────────────────
+const dz = el('dz');
+dz.addEventListener('dragover', e=>{e.preventDefault();dz.classList.add('over');});
+dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
+dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('over');if(e.dataTransfer.files[0])loadFile(e.dataTransfer.files[0]);});
+el('fi').addEventListener('change',e=>{if(e.target.files[0])loadFile(e.target.files[0]);});
+
+function loadFile(file) {
+  setStatus('heat','Parsing…'); setStatus('track','Parsing…');
+  const r=new FileReader();
+  r.onload=e=>{
+    try {
+      const res=parseCSV(e.target.result);
+      rows=res.rows; headers=res.headers;
+      window._utmZone=null; window._utmHemi=null;
+      setupCols(); // sets column guesses, then calls buildChips -> schedRender
+    } catch(err){ setStatus('heat','Error: '+err.message); }
+  };
+  r.readAsText(file);
+}
+
+function zoomToData() {
+  const lonCol=el('clon').value, latCol=el('clat').value;
+  const useUTM  = !!(window._utmZone);
+  const utmZone = window._utmZone || 36;
+  const utmHemi = window._utmHemi || 'N';
+  const pts=rows
+    .map(r=>{
+      let x=parseFloat(r[lonCol]), y=parseFloat(r[latCol]);
+      if(!isFinite(x)||!isFinite(y)) return null;
+      if(useUTM){ const ll=utmToLatLon(x,y,utmZone,utmHemi); return {lat:ll.lat,lon:ll.lon}; }
+      return {lat:y,lon:x};
+    })
+    .filter(p=>p&&isFinite(p.lat)&&isFinite(p.lon));
+  if(!pts.length) return;
+  const bounds=L.latLngBounds(pts.map(p=>[p.lat,p.lon]));
+  mapH.fitBounds(bounds,{padding:[40,40]});
+  mapT.fitBounds(bounds,{padding:[40,40]});
+}
+
+function parseCSV(txt) {
+  const lines=txt.trim().split(/\r?\n/);
+  const delim=lines[0].includes('\t')?'\t':',';
+  const headers=lines[0].split(delim).map(h=>h.replace(/^"|"$/g,'').trim());
+  const rows=[];
+  for(let i=1;i<lines.length;i++){
+    if(!lines[i].trim()) continue;
+    // handle quoted fields
+    const vals=[];let cur='',inQ=false;
+    for(let c of lines[i]){
+      if(c==='"'){inQ=!inQ;}
+      else if(c===delim&&!inQ){vals.push(cur.trim());cur='';}
+      else cur+=c;
+    }
+    vals.push(cur.trim());
+    const obj={};
+    headers.forEach((h,j)=>obj[h]=(vals[j]||'').replace(/^"|"$/g,''));
+    rows.push(obj);
+  }
+  return {headers,rows};
+}
+
+// ── UTM → LAT/LON CONVERSION ─────────────────────────────────────────────
+// Standard Transverse Mercator formula (WGS84)
+function utmToLatLon(easting, northing, zone, hemi) {
+  const a   = 6378137.0;
+  const f   = 1/298.257223563;
+  const b   = a*(1-f);
+  const e2  = 1 - (b*b)/(a*a);
+  const ep2 = e2/(1-e2);          // e'^2 (second eccentricity squared)
+  const k0  = 0.9996;
+  const E0  = 500000;
+  const N0  = hemi==='S' ? 10000000 : 0;
+
+  const x = easting  - E0;
+  const y = northing - N0;
+
+  const M   = y / k0;
+  const mu  = M / (a*(1 - e2/4 - 3*e2*e2/64 - 5*e2*e2*e2/256));
+
+  const e1  = (1 - Math.sqrt(1-e2)) / (1 + Math.sqrt(1-e2));
+  const phi1 = mu
+    + (3*e1/2    - 27*e1*e1*e1/32)      * Math.sin(2*mu)
+    + (21*e1*e1/16 - 55*e1*e1*e1*e1/32) * Math.sin(4*mu)
+    + (151*e1*e1*e1/96)                  * Math.sin(6*mu)
+    + (1097*e1*e1*e1*e1/512)             * Math.sin(8*mu);
+
+  const sinP = Math.sin(phi1), cosP = Math.cos(phi1), tanP = Math.tan(phi1);
+  const N1  = a / Math.sqrt(1 - e2*sinP*sinP);
+  const T1  = tanP*tanP;
+  const C1  = ep2*cosP*cosP;
+  const R1  = a*(1-e2) / Math.pow(1 - e2*sinP*sinP, 1.5);
+  const D   = x / (N1*k0);
+
+  const lat_rad = phi1 - (N1*tanP/R1)*(
+    D*D/2
+    - (5 + 3*T1 + 10*C1 - 4*C1*C1 - 9*ep2) * D*D*D*D/24
+    + (61 + 90*T1 + 298*C1 + 45*T1*T1 - 252*ep2 - 3*C1*C1) * D*D*D*D*D*D/720
+  );
+
+  // lon0 MUST be in radians before adding the offset (also in radians)
+  const lon0_rad = ((zone-1)*6 - 180 + 3) * Math.PI/180;
+  const lon_rad  = lon0_rad + (
+    D
+    - (1 + 2*T1 + C1) * D*D*D/6
+    + (5 - 2*C1 + 28*T1 - 3*C1*C1 + 8*ep2 + 24*T1*T1) * D*D*D*D*D/120
+  ) / cosP;
+
+  return { lat: lat_rad*180/Math.PI, lon: lon_rad*180/Math.PI };
+}
+
+function setupCols() {
+  const opts=headers.map(h=>`<option value="${h}">${h}</option>`).join('');
+  ['clon','clat','cid','cts'].forEach(id=>el(id).innerHTML=opts);
+  function guess(kws){return headers.find(h=>kws.some(k=>h.toLowerCase().includes(k)));}
+  el('clon').value=guess(['lon','lng','x','longitude','easting'])||headers[0];
+  el('clat').value=guess(['lat','y','latitude','northing'])||headers[1];
+  el('cid').value =guess(['id','animal','elephant','subject','name','tag'])||headers[2];
+  el('cts').value =guess(['time','date','timestamp','datetime','recorded'])||headers[3];
+
+  ['s-cols','s-hopts','s-topts'].forEach(id=>el(id).style.display='block');
+  detectCoordSystem();
+  buildChips();
+}
+
+function detectCoordSystem() {
+  const lonCol = el('clon').value;
+  const latCol = el('clat').value;
+  const sample = rows.slice(0, Math.min(50, rows.length));
+  const xs = sample.map(r=>parseFloat(r[lonCol])).filter(isFinite);
+  const ys = sample.map(r=>parseFloat(r[latCol])).filter(isFinite);
+  if (!xs.length) return;
+
+  const maxAbsX = Math.max(...xs.map(Math.abs));
+  const maxAbsY = Math.max(...ys.map(Math.abs));
+  const isUTM   = maxAbsX > 180 || maxAbsY > 90;
+
+  el('s-utm').style.display = 'block';
+  el('crs-latlon').style.display = isUTM ? 'none' : 'block';
+  el('crs-utm').style.display    = isUTM ? 'block' : 'none';
+
+  if (!isUTM) {
+    window._utmZone = null;
+    window._utmHemi = null;
+    return;
+  }
+
+  // Auto-detect hemisphere from northing
+  // S hemisphere: false northing of 10,000,000m is added, so values > 5,000,000
+  // are likely southern (a northing of 5M without false northing = ~45°N, not Africa)
+  const meanY = ys.reduce((a,b)=>a+b,0)/ys.length;
+  const hemi  = meanY > 5000000 ? 'S' : 'N';
+  el('utm-hemi').value = hemi;
+
+  // Don't auto-guess zone — require user to pick
+  // But highlight the most likely zone based on mean easting proximity to 500,000
+  // (all UTM zones have false easting 500,000 at central meridian)
+  const meanX = xs.reduce((a,b)=>a+b,0)/xs.length;
+  el('utm-zone-hint').innerHTML =
+    'Mean easting: <b style="color:var(--text)">' + Math.round(meanX).toLocaleString() + 'm</b><br>' +
+    'Mean northing: <b style="color:var(--text)">' + Math.round(meanY).toLocaleString() + 'm</b><br>' +
+    'Hemisphere auto-set to <b style="color:var(--text)">' + (hemi==='S'?'South':'North') + '</b> — adjust if needed';
+
+  // Reset zone so user must actively choose
+  window._utmZone = null;
+  window._utmHemi = hemi;
+}
+
+function setUTMZone(val) {
+  if (!val) { window._utmZone = null; schedRender(); return; }
+  const zone = parseInt(val);
+  window._utmZone = zone;
+  window._utmHemi = el('utm-hemi').value;
+
+}
+
+['clon','clat'].forEach(id=>el(id).addEventListener('change',()=>{detectCoordSystem();buildChips();}));
+['cid','cts'].forEach(id=>el(id).addEventListener('change',()=>{buildChips();}));
+
+
+// ── INDIVIDUALS ───────────────────────────────────────────────────────────
+function buildChips() {
+  const col=el('cid').value;
+  inds=[...new Set(rows.map(r=>r[col]).filter(Boolean))].sort();
+  selInds=new Set(inds);
+  el('chips').innerHTML=inds.map((id,i)=>{
+    const c=PAL[i%PAL.length];
+    return `<div class="chip on" data-idx="${i}" onclick="togChip(this)" style="background:${c};border-color:${c}">${id}</div>`;
+  }).join('');
+  el('s-inds').style.display='block';
+  el('s-render').style.display='block';
+}
+
+function togChip(chip) {
+  const id=inds[+chip.dataset.idx];
+  if(selInds.has(id)){
+    selInds.delete(id);
+    chip.classList.remove('on');
+    chip.style.background='';chip.style.borderColor='var(--border)';chip.style.color='var(--muted)';
+  } else {
+    selInds.add(id);
+    chip.classList.add('on');
+    const c=PAL[+chip.dataset.idx%PAL.length];
+    chip.style.background=c;chip.style.borderColor=c;chip.style.color='#0e0f13';
+  }
+}
+
+function selAll() {
+  selInds=new Set(inds);
+  document.querySelectorAll('.chip').forEach((c,i)=>{
+    c.classList.add('on');const col=PAL[i%PAL.length];
+    c.style.background=col;c.style.borderColor=col;c.style.color='#0e0f13';
+  });
+}
+function selNone() {
+  selInds.clear();
+  document.querySelectorAll('.chip').forEach(c=>{
+    c.classList.remove('on');c.style.background='';c.style.borderColor='var(--border)';c.style.color='var(--muted)';
+  });
+}
+
+// ── RENDER SCHEDULER ─────────────────────────────────────────────────────
+function schedRender() {
+  clearTimeout(renderTimer);
+  renderTimer=setTimeout(renderAll, 80);
+}
+
+function doRender() {
+  const btn = el('render-btn');
+  btn.textContent = '⏳ Rendering…';
+  btn.style.opacity = '0.7';
+  setTimeout(() => {
+    zoomToData();
+    renderAll();
+    btn.textContent = '↺ Re-render';
+    btn.style.opacity = '1';
+  }, 30);
+}
+
+function renderAll() {
+  if(!rows.length) return;
+  const lon=el('clon').value, lat=el('clat').value;
+  const cid=el('cid').value,  cts=el('cts').value;
+
+  const useUTM  = !!(window._utmZone);
+  const utmZone = window._utmZone || 36;
+  const utmHemi = window._utmHemi || 'N';
+
+  const pts=rows
+    .filter(r=>selInds.has(r[cid]))
+    .map(r=>{
+      let x=parseFloat(r[lon]), y=parseFloat(r[lat]);
+      if(!isFinite(x)||!isFinite(y)) return null;
+      if(useUTM){
+        const ll = utmToLatLon(x, y, utmZone, utmHemi);
+        return {lat:ll.lat, lon:ll.lon, id:r[cid], ts:r[cts]};
+      }
+      return {lat:y, lon:x, id:r[cid], ts:r[cts]};
+    })
+    .filter(p=>p&&isFinite(p.lat)&&isFinite(p.lon));
+
+  if(!pts.length){
+    setStatus('heat','No individuals selected');
+    setStatus('track','No individuals selected');
+    return;
+  }
+
+  renderHeatmap(pts);
+  renderTracks(pts);
+
+  // stats
+  const counts={};
+  pts.forEach(p=>counts[p.id]=(counts[p.id]||0)+1);
+  el('stattxt').innerHTML=
+    `<b>Points:</b> ${pts.length.toLocaleString()}<br>`+
+    Object.entries(counts).map(([k,v])=>`<b>${k}:</b> ${v.toLocaleString()}`).join('<br>');
+  el('s-stats').style.display='block';
+}
+
+// ── HEATMAP ───────────────────────────────────────────────────────────────
+// Uses a float32 accumulation buffer so density varies smoothly
+function renderHeatmap(pts) {
+  if(heatLayer){mapH.removeLayer(heatLayer);heatLayer=null;}
+
+  const radius  = parseInt(el('hr').value);
+  const spread  = parseFloat(el('hspread').value);
+
+  const HeatLayer = L.Layer.extend({
+    onAdd(map){
+      this._map=map;
+      this._canvas=document.createElement('canvas');
+      this._canvas.style.cssText='position:absolute;top:0;left:0;pointer-events:none;';
+      map.getPanes().overlayPane.appendChild(this._canvas);
+      map.on('moveend zoomend resize',this._draw,this);
+      this._draw();
+    },
+    onRemove(map){
+      map.getPanes().overlayPane.removeChild(this._canvas);
+      map.off('moveend zoomend resize',this._draw,this);
+    },
+    _draw(){
+      const size=this._map.getSize();
+      const cv=this._canvas;
+      cv.width=size.x; cv.height=size.y;
+      const tl=this._map.containerPointToLayerPoint([0,0]);
+      L.DomUtil.setPosition(cv,tl);
+
+      // --- accumulation buffer (float32) ---
+      const buf=new Float32Array(size.x*size.y);
+      let maxVal=0;
+
+      pts.forEach(p=>{
+        const cp=this._map.latLngToContainerPoint(L.latLng(p.lat,p.lon));
+        const cx=Math.round(cp.x), cy=Math.round(cp.y);
+        const r=radius;
+        const x0=Math.max(0,cx-r), x1=Math.min(size.x-1,cx+r);
+        const y0=Math.max(0,cy-r), y1=Math.min(size.y-1,cy+r);
+        for(let y=y0;y<=y1;y++){
+          for(let x=x0;x<=x1;x++){
+            const dx=x-cx, dy=y-cy;
+            const d2=dx*dx+dy*dy;
+            if(d2<=r*r){
+              // gaussian kernel
+              const v=Math.exp(-d2/(2*(r/spread)*(r/spread)));
+              buf[y*size.x+x]+=v;
+              if(buf[y*size.x+x]>maxVal) maxVal=buf[y*size.x+x];
+            }
+          }
+        }
+      });
+
+      if(maxVal===0){return;}
+
+      // --- colorize ---
+      const ctx=cv.getContext('2d');
+      const img=ctx.createImageData(size.x,size.y);
+      const d=img.data;
+      for(let i=0;i<buf.length;i++){
+        if(buf[i]>0){
+          const t=buf[i]/maxVal; // 0..1
+          const c=heatColor(t);
+          d[i*4  ]=c[0];
+          d[i*4+1]=c[1];
+          d[i*4+2]=c[2];
+          d[i*4+3]=c[3];
+        }
+      }
+      ctx.putImageData(img,0,0);
+    }
+  });
+
+  heatLayer=new HeatLayer();
+  heatLayer.addTo(mapH);
+  el('s-hleg').style.display='block';
+  el('map-hleg').style.display='block';
+  setStatus('heat',`${pts.length.toLocaleString()} pts`);
+}
+
+// Color ramp for light basemap: transparent → purple → blue → green → yellow → red
+function heatColor(t) {
+  const stops=[
+    [0,    [189,201,225,100]],  // low density — visible light blue, not transparent
+    [0.08, [189,201,225,160]],
+    [0.20, [116,169,207,195]],
+    [0.35, [43, 140,190, 215]],
+    [0.50, [8,  104,172, 225]],
+    [0.65, [254,204,92,  235]],
+    [0.80, [253,141,60,  242]],
+    [0.92, [215,48, 31,  250]],
+    [1.0,  [128,0,  38,  255]]
+  ];
+  for(let i=1;i<stops.length;i++){
+    if(t<=stops[i][0]){
+      const lo=stops[i-1],hi=stops[i];
+      const f=(t-lo[0])/(hi[0]-lo[0]);
+      return lo[1].map((v,j)=>Math.round(v+f*(hi[1][j]-v)));
+    }
+  }
+  return [128,0,38,255];
+}
+
+// ── TIMESTAMP PARSER ─────────────────────────────────────────────────────
+// Handles the R write.csv quirk: midnight timestamps are written as bare
+// dates ("2023-03-24") with the " 00:00:00" stripped. JavaScript parses
+// bare date strings as UTC midnight, but all other timestamps as local time,
+// causing midnight fixes to appear hours out of order (e.g. 3h early in UTC+3).
+// Fix: detect date-only strings and append T00:00:00 to force local midnight.
+function parseTs(raw) {
+  if (!raw) return 0;
+  const s = String(raw).trim();
+  // Date-only: "2023-03-24" — append T00:00:00 so JS treats as local midnight
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return new Date(s + 'T00:00:00').getTime();
+  // Space-separated datetime: "2023-03-24 06:30:00" → replace space with T
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/.test(s)) return new Date(s.replace(' ','T')).getTime();
+  // Already ISO or other format
+  const t = new Date(s).getTime();
+  if (!isNaN(t)) return t;
+  // Unix numeric (seconds or ms)
+  const n = Number(s);
+  if (!isNaN(n)) return n > 1e10 ? n : n * 1000;
+  return 0;
+}
+
+// ── SPEED TRACKS ──────────────────────────────────────────────────────────
+const RAMP=[
+  [0,   [49,54,149]],[0.1,[69,117,180]],[0.2,[116,173,209]],
+  [0.4, [224,243,248]],[0.5,[255,255,191]],[0.65,[254,224,144]],
+  [0.8, [253,174,97]],[0.9,[215,48,39]],[1.0,[165,0,38]]
+];
+function speedColor(t){
+  t=Math.max(0,Math.min(1,t));
+  for(let i=1;i<RAMP.length;i++){
+    if(t<=RAMP[i][0]){
+      const lo=RAMP[i-1],hi=RAMP[i];
+      const f=(t-lo[0])/(hi[0]-lo[0]);
+      return 'rgb('+RAMP[i-1][1].map((v,j)=>Math.round(v+f*(hi[1][j]-v))).join(',')+')';
+    }
+  }
+  return 'rgb(165,0,38)';
+}
+
+function haversine(a,b){
+  const R=6371,dLat=(b.lat-a.lat)*Math.PI/180,dLon=(b.lon-a.lon)*Math.PI/180;
+  const x=Math.sin(dLat/2)**2+Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLon/2)**2;
+  return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
+}
+
+function updateColourMax() {
+  const threshold = parseFloat(el('sft').value);
+  const smx = el('smx');
+  // cap the colour max slider's maximum to the filter threshold
+  smx.max = threshold;
+  // if current value exceeds new threshold, clamp it down
+  if (parseFloat(smx.value) > threshold) {
+    smx.value = threshold;
+    sv('smxv', threshold);
+    sv('leg-max', threshold);
+  }
+  // update the tick label showing the max
+  const tick = smx.parentElement.querySelector('.srow-ticks span:last-child');
+  if (tick) tick.textContent = threshold;
+}
+
+function renderTracks(pts){
+  trackLayers.forEach(l=>mapT.removeLayer(l));
+  trackLayers=[];
+
+  const filterSpd = parseFloat(el('sft').value);
+  const maxSpd    = parseFloat(el('smx').value);
+  const wt        = parseInt(el('tw').value);
+  const op        = parseInt(el('top').value)/100;
+  el('leg-max').textContent = maxSpd;
+
+  // group & sort by time
+  const groups={};
+  pts.forEach(p=>{(groups[p.id]||(groups[p.id]=[])).push(p);});
+  Object.values(groups).forEach(g=>g.sort((a,b)=>parseTs(a.ts)-parseTs(b.ts)));
+
+  let nseg=0, nfiltered=0;
+  const speeds=[];
+
+  Object.entries(groups).forEach(([id,g])=>{
+    for(let i=1;i<g.length;i++){
+      const a=g[i-1],b=g[i];
+      const dist=haversine(a,b);
+      const dt=(parseTs(b.ts)-parseTs(a.ts))/3600000;
+      const spd=(dt>0&&isFinite(dt))?dist/dt:0;
+
+      // drop segments above filter threshold
+      if(spd > filterSpd){ nfiltered++; continue; }
+
+      speeds.push(spd);
+      const seg=L.polyline([[a.lat,a.lon],[b.lat,b.lon]],{
+        color:speedColor(spd/maxSpd),weight:wt,opacity:op,
+        lineCap:'round',lineJoin:'round'
+      });
+      seg.bindTooltip(
+        `<span style="font-family:monospace;font-size:11px;line-height:1.6">
+          <b>${id}</b><br>${spd.toFixed(2)} km/h · ${(dist*1000).toFixed(0)} m
+        </span>`,{sticky:true}
+      );
+      seg.addTo(mapT);
+      trackLayers.push(seg);
+      nseg++;
+    }
+  });
+
+  el('s-tleg').style.display='block';
+  el('map-tleg').style.display='block';
+  el('map-leg-max').textContent=maxSpd;
+
+  // show filter info box
+  const total = nseg + nfiltered;
+  const pct   = total > 0 ? ((nfiltered/total)*100).toFixed(1) : 0;
+  const info  = el('filter-info');
+  if(nfiltered > 0){
+    info.style.display='block';
+    info.innerHTML=`<span style="color:var(--warn,#f0a868)">&#9888; ${nfiltered.toLocaleString()} segments filtered</span> (${pct}% of total) — speeds &gt; ${filterSpd} km/h`;
+  } else {
+    info.style.display='none';
+  }
+
+  const avg=speeds.length?speeds.reduce((a,b)=>a+b,0)/speeds.length:0;
+  const mx =speeds.length?Math.max(...speeds):0;
+  setStatus('track',`${nseg.toLocaleString()} segs · avg ${avg.toFixed(1)} · max ${mx.toFixed(1)} km/h`);
+}
+
+function setStatus(which,msg){
+  el(which==='heat'?'badge-heat':'badge-track').textContent=msg;
+}
+</script>
+</body>
+</html>
